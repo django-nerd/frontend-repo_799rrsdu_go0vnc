@@ -20,7 +20,7 @@ export default function HeroHeader({ user, onLogout }) {
             </div>
             <div>
               <h1 className="text-xl font-semibold tracking-tight">Club Expense Manager</h1>
-              <p className="text-xs text-white/70">Built for NxtWave GenAI Club</p>
+              <p className="text-xs text-white/70">Built for NxtWave Clubs</p>
             </div>
           </div>
           {user && (

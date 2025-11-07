@@ -203,6 +203,112 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  // Import helpers
+  const [importMode, setImportMode] = useState('merge'); // 'merge' | 'replace'
+
+  function parseCSV(text) {
+    // Minimal CSV parser that handles quoted fields and commas inside quotes
+    const lines = text.replace(/\r\n?/g, '\n').split('\n').filter(Boolean);
+    if (!lines.length) return { header: [], rows: [] };
+    const parseLine = (line) => {
+      const out = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          out.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      out.push(current);
+      return out.map((s) => s.trim());
+    };
+    const header = parseLine(lines[0]).map((h) => h.replace(/^"|"$/g, ''));
+    const rows = lines.slice(1).map((ln) => parseLine(ln));
+    return { header, rows };
+  }
+
+  function importCSV(file) {
+    if (!currentUser) {
+      toast('Sign in to import', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const { header, rows } = parseCSV(e.target.result);
+        if (!rows.length) {
+          toast('CSV is empty', 'error');
+          return;
+        }
+        const idx = (name) => header.findIndex((h) => h.toLowerCase() === name);
+        const hLower = header.map((h) => h.toLowerCase());
+        const hasEmail = hLower.includes('email');
+        const get = (row, name) => {
+          const i = idx(name);
+          return i >= 0 ? row[i].replace(/^"|"$/g, '') : '';
+        };
+        const imported = rows.map((row) => ({
+          id: get(row, 'id') || Date.now().toString() + Math.random().toString(36).slice(2),
+          date: get(row, 'date') || new Date().toISOString().slice(0, 10),
+          title: get(row, 'title') || '',
+          type: (get(row, 'type') || 'expense').toLowerCase() === 'income' ? 'income' : 'expense',
+          category: get(row, 'category') || '',
+          amount: Number(get(row, 'amount') || 0),
+          notes: get(row, 'notes') || '',
+          _email: hasEmail ? get(row, 'email') : currentUser.email,
+        }));
+
+        // Filter by email match, but if mixed emails, ask for confirmation
+        const nonMatching = imported.filter((r) => r._email && r._email !== currentUser.email);
+        if (nonMatching.length && !window.confirm(`Detected ${nonMatching.length} rows belonging to a different email. Import only rows for ${currentUser.email}?`)) {
+          // If user doesn't confirm, abort
+          return;
+        }
+        const scoped = imported.filter((r) => r._email === currentUser.email);
+
+        if (!scoped.length) {
+          toast('No rows for your email', 'error');
+          return;
+        }
+
+        // Merge categories found
+        const incomingCats = Array.from(new Set(scoped.map((x) => x.category).filter(Boolean)));
+        setCategories((prev) => Array.from(new Set([...incomingCats, ...prev])));
+
+        // Apply import mode
+        if (importMode === 'replace') {
+          setExpenses(scoped.map(({ _email, ...rest }) => rest));
+        } else {
+          setExpenses((prev) => {
+            const byId = new Map(prev.map((p) => [p.id, p]));
+            for (const rec of scoped) {
+              const { _email, ...clean } = rec;
+              byId.set(clean.id, clean); // replace if exists or add if new
+            }
+            // Newer imports at the top by current date order
+            return Array.from(byId.values()).sort((a, b) => b.date.localeCompare(a.date));
+          });
+        }
+        toast(`Imported ${scoped.length} rows (${importMode})`, 'success');
+      } catch {
+        toast('Invalid CSV', 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
   function importJSON(file) {
     if (!currentUser) {
       toast('Sign in to import', 'error');
@@ -269,15 +375,41 @@ export default function App() {
                 onQuickAdd={quickAdd}
               />
 
-              <section className="mt-4 bg-white/5 backdrop-blur rounded-2xl p-4 ring-1 ring-white/10 text-sm">
-                <div className="font-medium text-white/90 mb-2">Export / Backup / Restore</div>
-                <button onClick={downloadCSV} className="w-full mb-2 rounded-lg bg-blue-500/90 px-3 py-2 text-black hover:bg-blue-400">Download CSV</button>
-                <button onClick={backupJSON} className="w-full mb-2 rounded-lg bg-yellow-300/90 px-3 py-2 text-black hover:bg-yellow-300">Backup JSON</button>
-                <label className="block cursor-pointer">
-                  <input type="file" accept="application/json" onChange={(e) => e.target.files && e.target.files[0] && importJSON(e.target.files[0])} className="hidden" />
-                  <span className="inline-block w-full text-center rounded-lg bg-white/10 px-3 py-2 ring-1 ring-white/20 hover:bg-white/20">Import JSON</span>
-                </label>
-                <p className="mt-2 text-xs text-white/60">Local-first: your data stays in this browser profile, scoped per signed-in user. Export and backup files are named with your email to avoid mix-ups.</p>
+              <section className="mt-4 bg-white/5 backdrop-blur rounded-2xl p-4 ring-1 ring-white/10 text-sm space-y-3">
+                <div className="font-medium text-white/90">Export / Backup / Restore</div>
+                <button onClick={downloadCSV} className="w-full rounded-lg bg-blue-500/90 px-3 py-2 text-black hover:bg-blue-400">Download CSV</button>
+                <button onClick={backupJSON} className="w-full rounded-lg bg-yellow-300/90 px-3 py-2 text-black hover:bg-yellow-300">Backup JSON</button>
+
+                <div className="pt-2 border-t border-white/10">
+                  <div className="mb-2 text-xs text-white/70">Import mode</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setImportMode('merge')}
+                      className={`rounded-md px-3 py-1.5 text-sm ring-1 ring-inset ${importMode === 'merge' ? 'bg-emerald-400 text-black ring-emerald-300' : 'bg-white/10 text-white/80 ring-white/20 hover:bg-white/20'}`}
+                    >
+                      Merge
+                    </button>
+                    <button
+                      onClick={() => setImportMode('replace')}
+                      className={`rounded-md px-3 py-1.5 text-sm ring-1 ring-inset ${importMode === 'replace' ? 'bg-rose-400 text-black ring-rose-300' : 'bg-white/10 text-white/80 ring-white/20 hover:bg-white/20'}`}
+                    >
+                      Replace
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <label className="block cursor-pointer">
+                    <input type="file" accept="application/json" onChange={(e) => e.target.files && e.target.files[0] && importJSON(e.target.files[0])} className="hidden" />
+                    <span className="inline-block w-full text-center rounded-lg bg-white/10 px-3 py-2 ring-1 ring-white/20 hover:bg-white/20">Import JSON</span>
+                  </label>
+                  <label className="block cursor-pointer">
+                    <input type="file" accept=".csv,text/csv" onChange={(e) => e.target.files && e.target.files[0] && importCSV(e.target.files[0])} className="hidden" />
+                    <span className="inline-block w-full text-center rounded-lg bg-white/10 px-3 py-2 ring-1 ring-white/20 hover:bg-white/20">Import CSV</span>
+                  </label>
+                </div>
+
+                <p className="text-xs text-white/60">Local-first: your data stays in this browser profile, scoped per signed-in user. Exports include your email; CSV imports accept columns: email, id, date, title, type, category, amount, notes.</p>
               </section>
             </div>
 

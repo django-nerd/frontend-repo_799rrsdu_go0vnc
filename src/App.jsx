@@ -422,7 +422,7 @@ export default function App() {
             </div>
           </div>
 
-          <footer className="mt-8 text-center text-white/60 text-sm">Built for NxtWave GenAI Club · Managed by Mohith</footer>
+          <footer className="mt-8 text-center text-white/60 text-sm">Built for NxtWave Clubs · Managed by Mohith</footer>
         </main>
       )}
 

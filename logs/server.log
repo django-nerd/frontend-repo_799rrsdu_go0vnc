@@ -3,11 +3,7 @@
 > vite
 
 
-  VITE v5.4.20  ready in 286 ms
+  VITE v5.4.20  ready in 305 ms
 
   ➜  Local:   http://localhost:3000/
   ➜  Network: http://172.20.16.237:3000/
-10:27:32 AM [vite] ✨ new dependencies optimized: framer-motion, lucide-react, @splinetool/react-spline
-10:27:32 AM [vite] ✨ optimized dependencies changed. reloading
-The file does not exist at "/home/workspace/node_modules/.vite/deps/chunk-I4MZPW7S.js?v=35394813" which is in the optimize deps directory. The dependency might be incompatible with the dep optimizer. Try adding it to `optimizeDeps.exclude`.
-The file does not exist at "/home/workspace/node_modules/.vite/deps/chunk-XPR23Y44.js?v=35394813" which is in the optimize deps directory. The dependency might be incompatible with the dep optimizer. Try adding it to `optimizeDeps.exclude`.

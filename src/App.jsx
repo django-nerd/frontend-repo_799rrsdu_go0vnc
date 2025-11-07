@@ -27,6 +27,10 @@ export default function App() {
   const storageKey = currentUser ? `cem_expenses::${userKeyPrefix}` : null;
   const catKey = currentUser ? `cem_cats::${userKeyPrefix}` : null;
 
+  const safeEmail = currentUser?.email
+    ? currentUser.email.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+    : 'anonymous';
+
   // ---------- DATA ----------
   const defaultCats = ['Food', 'Transport', 'Tools', 'Events', 'Misc'];
   const [expenses, setExpenses] = useState([]);
@@ -150,39 +154,70 @@ export default function App() {
     setForm((f) => ({ ...f, category: cat }));
   }
 
-  // ---------- EXPORT / IMPORT ----------
+  // ---------- EXPORT / IMPORT (scoped by email) ----------
   function downloadCSV() {
+    if (!currentUser) {
+      toast('Sign in to export', 'error');
+      return;
+    }
     if (!expenses.length) {
       toast('No data', 'error');
       return;
     }
-    const header = ['id', 'date', 'title', 'type', 'category', 'amount', 'notes'];
-    const rows = expenses.map((r) => header.map((h) => JSON.stringify(r[h] ?? '')).join(','));
+    const header = ['email', 'id', 'date', 'title', 'type', 'category', 'amount', 'notes'];
+    const rows = expenses.map((r) => [
+      JSON.stringify(currentUser.email),
+      JSON.stringify(r.id ?? ''),
+      JSON.stringify(r.date ?? ''),
+      JSON.stringify(r.title ?? ''),
+      JSON.stringify(r.type ?? ''),
+      JSON.stringify(r.category ?? ''),
+      JSON.stringify(r.amount ?? ''),
+      JSON.stringify(r.notes ?? ''),
+    ].join(','));
     const csv = [header.join(','), ...rows].join('\n');
     const b = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(b);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'cem_transactions.csv';
+    a.download = `cem_${safeEmail}_transactions.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
   function backupJSON() {
-    const b = new Blob([JSON.stringify({ expenses, categories }, null, 2)], { type: 'application/json' });
+    if (!currentUser) {
+      toast('Sign in to backup', 'error');
+      return;
+    }
+    const payload = {
+      owner_email: currentUser.email,
+      exported_at: new Date().toISOString(),
+      categories,
+      expenses,
+    };
+    const b = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(b);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cem_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `cem_backup_${safeEmail}_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
   function importJSON(file) {
+    if (!currentUser) {
+      toast('Sign in to import', 'error');
+      return;
+    }
     const r = new FileReader();
     r.onload = (e) => {
       try {
         const obj = JSON.parse(e.target.result);
-        if (obj.expenses) setExpenses(obj.expenses);
-        if (obj.categories) setCategories(obj.categories);
+        if (obj.owner_email && obj.owner_email !== currentUser.email) {
+          const proceed = window.confirm(`Backup belongs to ${obj.owner_email}. Import into ${currentUser.email}?`);
+          if (!proceed) return;
+        }
+        if (Array.isArray(obj.expenses)) setExpenses(obj.expenses);
+        if (Array.isArray(obj.categories)) setCategories(obj.categories);
         toast('Import successful', 'success');
       } catch {
         toast('Invalid JSON', 'error');
@@ -242,7 +277,7 @@ export default function App() {
                   <input type="file" accept="application/json" onChange={(e) => e.target.files && e.target.files[0] && importJSON(e.target.files[0])} className="hidden" />
                   <span className="inline-block w-full text-center rounded-lg bg-white/10 px-3 py-2 ring-1 ring-white/20 hover:bg-white/20">Import JSON</span>
                 </label>
-                <p className="mt-2 text-xs text-white/60">Local-first: your data stays in this browser profile, scoped per signed-in user. Swap to a backend or cloud sync later.</p>
+                <p className="mt-2 text-xs text-white/60">Local-first: your data stays in this browser profile, scoped per signed-in user. Export and backup files are named with your email to avoid mix-ups.</p>
               </section>
             </div>
 

@@ -6,7 +6,7 @@ export default function HeroHeader({ user, onLogout }) {
     <header className="relative w-full h-[320px] md:h-[420px] overflow-hidden bg-[#000000] text-white">
       <div className="absolute inset-0">
         <Spline
-          scene="https://prod.spline.design/8nsoLg1te84JZcE9/scene.splinecode"
+          scene="https://prod.spline.design/41MGRk-UDPKO-l6W/scene.splinecode"
           style={{ width: '100%', height: '100%' }}
         />
       </div>

@@ -44,7 +44,7 @@ export default function TransactionForm({ categories = [], editing, onSave, onCa
       </div>
       <div>
         <label className="block text-sm mb-1">Amount</label>
-        <input type="number" step="0.01" className="w-full rounded-md bg.black border border-white/20 px-3 py-2 outline-none focus:border-[#5B913B]" value={model.amount} onChange={(e)=>setModel(m=>({...m,amount:e.target.value}))} required />
+        <input type="number" step="0.01" className="w-full rounded-md bg-black border border-white/20 px-3 py-2 outline-none focus:border-[#5B913B]" value={model.amount} onChange={(e)=>setModel(m=>({...m,amount:e.target.value}))} required />
       </div>
 
       {model.type !== 'income' && (

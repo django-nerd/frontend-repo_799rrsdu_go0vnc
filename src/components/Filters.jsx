@@ -1,24 +1,36 @@
 import React from 'react';
 
-export default function Filters({ categories, filter, setFilter }) {
+export default function Filters({ filters, categories, onChange }) {
+  const set = (k, v) => onChange({ ...filters, [k]: v });
   return (
-    <section className="bg-white/5 backdrop-blur rounded-2xl p-4 ring-1 ring-white/10">
-      <h3 className="font-medium text-white/90 mb-3">Filters</h3>
-      <div className="flex flex-wrap items-center gap-2">
-        <input type="date" value={filter.from} onChange={(e)=>setFilter(f=>({...f,from:e.target.value}))} className="rounded-lg bg-black/40 px-3 py-2 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
-        <input type="date" value={filter.to} onChange={(e)=>setFilter(f=>({...f,to:e.target.value}))} className="rounded-lg bg-black/40 px-3 py-2 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
-        <select value={filter.category} onChange={(e)=>setFilter(f=>({...f,category:e.target.value}))} className="rounded-lg bg-black/40 px-3 py-2 ring-1 ring-white/10 focus:outline-none">
-          <option>All</option>
-          {categories.map(c => <option key={c}>{c}</option>)}
-        </select>
-        <select value={filter.type} onChange={(e)=>setFilter(f=>({...f,type:e.target.value}))} className="rounded-lg bg-black/40 px-3 py-2 ring-1 ring-white/10 focus:outline-none">
-          <option>All</option>
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-        </select>
-        <input placeholder="Search" value={filter.search} onChange={(e)=>setFilter(f=>({...f,search:e.target.value}))} className="flex-1 min-w-[160px] rounded-lg bg-black/40 px-3 py-2 ring-1 ring-white/10 focus:outline-none" />
-        <button onClick={()=>setFilter({from:'',to:'',category:'All',type:'All',search:''})} className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">Reset</button>
+    <div className="grid md:grid-cols-6 gap-3 bg-[#0b0b0b] border border-white/10 p-4 rounded-xl text-white">
+      <div>
+        <label className="block text-sm mb-1">From</label>
+        <input type="date" className="w-full rounded-md bg-black border border-white/20 px-3 py-2 outline-none focus:border-[#5B913B]" value={filters.from} onChange={(e)=>set('from', e.target.value)} />
       </div>
-    </section>
+      <div>
+        <label className="block text-sm mb-1">To</label>
+        <input type="date" className="w-full rounded-md bg-black border border-white/20 px-3 py-2 outline-none focus:border-[#5B913B]" value={filters.to} onChange={(e)=>set('to', e.target.value)} />
+      </div>
+      <div>
+        <label className="block text-sm mb-1">Type</label>
+        <select className="w-full rounded-md bg-black border border-white/20 px-3 py-2 outline-none focus:border-[#5B913B]" value={filters.type} onChange={(e)=>set('type', e.target.value)}>
+          <option value="all">All</option>
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm mb-1">Category</label>
+        <select className="w-full rounded-md bg-black border border-white/20 px-3 py-2 outline-none focus:border-[#5B913B]" value={filters.category} onChange={(e)=>set('category', e.target.value)}>
+          <option value="all">All</option>
+          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+      <div className="md:col-span-2">
+        <label className="block text-sm mb-1">Search</label>
+        <input type="text" placeholder="Search title or notes" className="w-full rounded-md bg-black border border-white/20 px-3 py-2 outline-none focus:border-[#5B913B]" value={filters.q} onChange={(e)=>set('q', e.target.value)} />
+      </div>
+    </div>
   );
 }

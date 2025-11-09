@@ -5,6 +5,9 @@ import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import Filters from './components/Filters';
 import TransactionsTable from './components/TransactionsTable';
+import Charts from './components/Charts';
+import CategoryManager from './components/CategoryManager';
+import Toast from './components/Toast';
 
 function safeEmailKey(email) { return email.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase(); }
 function load(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } }
@@ -16,6 +19,7 @@ export default function App() {
   const [categories, setCategories] = useState(['Food', 'Transport', 'Tools', 'Events', 'Misc']);
   const [editing, setEditing] = useState(null);
   const [filters, setFilters] = useState({ from: '', to: '', type: 'all', category: 'all', q: '' });
+  const [toast, setToast] = useState({ message: '', type: 'success' });
 
   const emailKey = user ? safeEmailKey(user.email) : null;
   const txKey = user ? `cem_expenses::${emailKey}` : null;
@@ -48,10 +52,12 @@ export default function App() {
       const nextCats = [...categories, model.category];
       setCategories(nextCats);
       save(catsKey, nextCats);
+      setToast({ message: `Category "${model.category}" added`, type: 'success' });
     }
     setItems(next);
     save(txKey, next);
     setEditing(null);
+    setToast({ message: model.id ? 'Transaction updated' : 'Transaction added', type: 'success' });
   };
 
   const onEdit = (it) => setEditing(it);
@@ -59,6 +65,34 @@ export default function App() {
     const next = items.filter((it) => it.id !== id);
     setItems(next);
     save(txKey, next);
+    setToast({ message: 'Transaction deleted', type: 'success' });
+  };
+
+  const addCategory = (name) => {
+    if (!user) return;
+    const trimmed = String(name).trim();
+    if (!trimmed) return;
+    if (categories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      setToast({ message: 'Category already exists', type: 'error' });
+      return;
+    }
+    const next = [...categories, trimmed];
+    setCategories(next);
+    save(catsKey, next);
+    setToast({ message: `Category "${trimmed}" added`, type: 'success' });
+  };
+
+  const removeCategory = (name) => {
+    if (!user) return;
+    const inUse = items.some((it) => it.type !== 'income' && it.category === name);
+    if (inUse) {
+      setToast({ message: 'Cannot remove a category that is used by a transaction', type: 'error' });
+      return;
+    }
+    const next = categories.filter((c) => c !== name);
+    setCategories(next);
+    save(catsKey, next);
+    setToast({ message: `Category "${name}" removed`, type: 'success' });
   };
 
   const filtered = useMemo(() => {
@@ -87,6 +121,8 @@ export default function App() {
         ) : (
           <>
             <Dashboard expenses={items} />
+            <Charts items={items} />
+            <CategoryManager categories={categories} onAdd={addCategory} onRemove={removeCategory} />
             <Filters filters={filters} categories={categories} onChange={setFilters} />
             <TransactionForm categories={categories} editing={editing} onSave={onSaveTx} onCancel={() => setEditing(null)} />
             <TransactionsTable items={filtered} onEdit={onEdit} onDelete={onDelete} />
@@ -97,6 +133,8 @@ export default function App() {
       <footer className="border-t border-white/10 py-6 text-center text-sm text-white/70">
         Built for NxtWave Clubs · Modern dark theme · Palette: #000000, #84994F, #754E1A, #5B913B, #FFFFFF
       </footer>
+
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'success' })} />
     </div>
   );
 }
